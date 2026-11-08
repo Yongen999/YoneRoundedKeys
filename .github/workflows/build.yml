@@ -1,0 +1,68 @@
+name: Build YoneRoundedKeys
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive_path="$(find . -maxdepth 1 -name 'YoneRoundedKeys_v0.2.5_GitHub*.zip' -type f -print -quit)"
+          test -n "$archive_path"
+          python3 -m zipfile -e "$archive_path" .
+          test -f YoneRoundedKeys/Makefile
+
+      - name: Install build tools
+        run: brew install make ldid dpkg
+
+      - name: Install RootHide Theos
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --recursive --depth 1 https://github.com/roothide/theos.git "$RUNNER_TEMP/theos"
+          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
+
+      - name: Build both CPU architectures
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd YoneRoundedKeys
+          xcrun --find clang
+          xcrun --sdk iphoneos --show-sdk-version
+          ios_sdk_path="$(xcrun --sdk iphoneos --show-sdk-path)"
+          gmake package FINALPACKAGE=1 DEBUG=0 SYSROOT="$ios_sdk_path" 2>&1 | tee build.log
+
+      - name: Verify packaged architecture and settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd YoneRoundedKeys
+          package_path="$(find packages -name '*.deb' -type f -print -quit)"
+          test -n "$package_path"
+          dpkg-deb -x "$package_path" extracted
+          python3 scripts/verify_package.py extracted | tee verification.log
+          library_path="extracted/Library/MobileSubstrate/DynamicLibraries/YoneRoundedKeys.dylib"
+          xcrun lipo -verify_arch arm64 arm64e "$library_path"
+          codesign --verify --verbose=2 "$library_path" 2>&1 | tee -a verification.log
+          xcrun lipo -info "$library_path" | tee -a verification.log
+
+      - name: Upload package and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YoneRoundedKeys-build
+          path: |
+            YoneRoundedKeys/packages/*.deb
+            YoneRoundedKeys/build.log
+            YoneRoundedKeys/verification.log
+          if-no-files-found: warn
