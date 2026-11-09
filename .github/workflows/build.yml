@@ -40,7 +40,7 @@ jobs:
           xcrun --find clang
           xcrun --sdk iphoneos --show-sdk-version
           ios_sdk_path="$(xcrun --sdk iphoneos --show-sdk-path)"
-          gmake package FINALPACKAGE=1 DEBUG=0 SYSROOT="$ios_sdk_path" ADDITIONAL_CFLAGS="-Wno-error=deprecated-declarations" 2>&1 | tee build.log
+          gmake package FINALPACKAGE=1 DEBUG=0 SYSROOT="$ios_sdk_path" ADDITIONAL_CFLAGS="-Wno-error=deprecated-declarations" THEOS_PACKAGE_SCHEME=roothide 2>&1 | tee build.logg
 
       - name: Verify packaged architecture and settings
         shell: bash
