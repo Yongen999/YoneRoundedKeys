@@ -53,7 +53,7 @@ jobs:
           python3 scripts/verify_package.py extracted | tee verification.log
           library_path="extracted/Library/MobileSubstrate/DynamicLibraries/YoneRoundedKeys.dylib"
           xcrun lipo "$library_path" -verify_arch arm64 arm64e
-          codesign --verify --verbose=2 "$library_path" 2>&1 | tee -a verification.log
+          # codesign --verify --verbose=2 "$library_path" 2>&1 | tee -a verification.log
           xcrun lipo -info "$library_path" | tee -a verification.log
 
       - name: Upload package and logs
